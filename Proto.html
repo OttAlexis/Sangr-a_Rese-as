@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Inventario - Prototipo</title>
+
+  <!-- Estilos simples -->
+  <style>
+    :root{
+      --bg:#f6f8fa;
+      --card:#ffffff;
+      --accent:#2b6cb0;
+      --muted:#6b7280;
+      --border:#e6e9ee;
+    }
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background:var(--bg);
+      color:#111827;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+    .container{
+      max-width:1100px;
+      margin:28px auto;
+      padding:24px;
+    }
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:18px;
+      box-shadow: 0 6px 18px rgba(11,22,48,0.04);
+    }
+    header h1{ margin:0 0 6px; font-size:20px; }
+    header p{ margin:0; color:var(--muted); font-size:14px; }
+
+    .toolbar{
+      display:flex;
+      gap:10px;
+      margin:14px 0 18px;
+      flex-wrap:wrap;
+    }
+    button{
+      background:var(--accent);
+      color:white;
+      border:0;
+      padding:8px 12px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    button.secondary{
+      background:transparent;
+      color:var(--accent);
+      border:1px solid var(--accent);
+    }
+    .note{ color:var(--muted); font-size:13px; margin-top:8px; }
+
+    .table-wrap{
+      overflow:auto;
+      max-height:65vh;
+      border-radius:8px;
+      border:1px solid var(--border);
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      min-width:900px;
+      font-size:13px;
+    }
+    thead th{
+      background:#f1f5f9;
+      text-align:left;
+      padding:10px;
+      border-bottom:1px solid var(--border);
+      position:sticky;
+      top:0;
+      z-index:2;
+    }
+    tbody td{
+      padding:8px 10px;
+      border-bottom:1px solid #f0f2f5;
+      vertical-align:middle;
+    }
+    tbody tr:nth-child(even){ background:#fbfcfd; }
+    td[contenteditable="true"]{
+      outline:none;
+    }
+    .small{ font-size:12px; color:var(--muted); }
+
+    @media (max-width:700px){
+      header h1{ font-size:18px; }
+      .container{ padding:12px; }
+      table{ min-width:720px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <header>
+        <h1>Prototipo - Gestión de Stock</h1>
+        <p class="small">Tabla editable de inventario. Completa los datos y luego descarga el inventario en CSV o PDF.</p>
+      </header>
+
+      <div class="toolbar" role="toolbar" aria-label="acciones">
+        <button id="downloadCsvBtn">Descargar CSV</button>
+        <button id="downloadPdfBtn">Descargar PDF</button>
+        <button id="fillSampleBtn" class="secondary">Llenar ejemplo rápido</button>
+      </div>
+
+      <div class="note">Tip: haz doble clic en cualquier celda para editar. La descarga usa los valores mostrados.</div>
+
+      <div class="table-wrap" style="margin-top:12px;">
+        <table id="inventoryTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Código</th>
+              <th>Nombre</th>
+              <th>Cantidad</th>
+              <th>Precio unitario</th>
+              <th>Ubicación</th>
+              <th>Proveedor</th>
+              <th>Observaciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Se generan 40 filas desde JS al cargar -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Librerías para exportar PDF (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+  <script>
+    // Generar 40 filas vacías al inicio
+    const tbody = document.querySelector('#inventoryTable tbody');
+
+    function createEmptyRow(index){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="index-col">${index}</td>
+        <td contenteditable="true"></td>
+        <td contenteditable="true"></td>
+        <td contenteditable="true"></td>
+        <td contenteditable="true"></td>
+        <td contenteditable="true"></td>
+        <td contenteditable="true"></td>
+        <td contenteditable="true"></td>
+      `;
+      return tr;
+    }
+
+    function populateEmptyTable(){
+      tbody.innerHTML = '';
+      for(let i=1;i<=40;i++){
+        tbody.appendChild(createEmptyRow(i));
+      }
+    }
+
+    populateEmptyTable();
+
+    // BOTÓN: Llenar ejemplo rápido (para probar)
+    document.getElementById('fillSampleBtn').addEventListener('click', ()=>{
+      const rows = tbody.querySelectorAll('tr');
+      for(let i=0;i<rows.length;i++){
+        const cells = rows[i].querySelectorAll('td');
+        cells[1].innerText = 'P-'+String(i+1).padStart(3,'0'); // código
+        cells[2].innerText = 'Producto ' + (i+1);
+        cells[3].innerText = Math.floor(Math.random()*100); // cantidad
+        cells[4].innerText = (Math.random()*100).toFixed(2);
+        cells[5].innerText = 'Dep ' + ((i % 5)+1);
+        cells[6].innerText = ['Proveedor A','Proveedor B','Proveedor C'][i % 3];
+        cells[7].innerText = (i%4===0) ? 'Revisar' : '';
+      }
+    });
+
+    // Función para descargar CSV
+    function tableToCSV(filename){
+      const rows = document.querySelectorAll('#inventoryTable tr');
+      const csv = [];
+      for (let i = 0; i < rows.length; i++) {
+        const cols = rows[i].querySelectorAll('td, th');
+        const row = [];
+        for (let j = 0; j < cols.length; j++) {
+          // escape
+          let text = cols[j].innerText.replace(/\n/g, ' ').replace(/"/g, '""');
+          if (text.search(/("|,|\n)/g) >= 0) text = `"${text}"`;
+          row.push(text);
+        }
+        csv.push(row.join(','));
+      }
+      const csvString = csv.join('\n');
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('downloadCsvBtn').addEventListener('click', () => {
+      const now = new Date();
+      const fname = `inventario_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.csv`;
+      tableToCSV(fname);
+    });
+
+    // Función para descargar PDF usando jsPDF + autoTable
+    async function downloadPDF(filename){
+      // Recolectar encabezados
+      const headers = Array.from(document.querySelectorAll('#inventoryTable thead th')).map(th => th.innerText.trim());
+      // Recolectar filas
+      const data = [];
+      const rows = document.querySelectorAll('#inventoryTable tbody tr');
+      rows.forEach(tr => {
+        const cells = Array.from(tr.querySelectorAll('td'));
+        const row = cells.map(td => td.innerText.trim());
+        data.push(row);
+      });
+
+      // Crear PDF
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit:'pt', format:'a4', orientation:'landscape' }); // landscape para ancho mayor
+      const title = 'Inventario';
+      doc.setFontSize(14);
+      doc.text(title, 40, 40);
+
+      // autoTable
+      doc.autoTable({
+        head: [headers],
+        body: data,
+        startY: 60,
+        styles: { fontSize: 9, cellPadding: 4 },
+        headStyles: { fillColor: [43,108,176], textColor: 255 },
+        theme: 'striped',
+        margin: { left: 20, right: 20, top: 20, bottom: 20 },
+        didDrawPage: function (data) {
+          const pageSize = doc.internal.pageSize;
+          const pageWidth = pageSize.getWidth ? pageSize.getWidth() : pageSize.width;
+          const pageHeight = pageSize.getHeight ? pageSize.getHeight() : pageSize.height;
+          // footer
+          doc.setFontSize(9);
+          const now = new Date();
+          const foot = `Generado: ${now.toLocaleString()}`;
+          doc.text(foot, pageWidth - 150, pageHeight - 10);
+        }
+      });
+
+      doc.save(filename);
+    }
+
+    document.getElementById('downloadPdfBtn').addEventListener('click', () => {
+      const now = new Date();
+      const fname = `inventario_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.pdf`;
+      downloadPDF(fname);
+    });
+
+    // Mejor UX: permitir enter para crear nueva línea en celdas (opcional)
+    // No añadimos lógica compleja para preservar simplicidad.
+  </script>
+</body>
+</html>
